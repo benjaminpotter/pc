@@ -8,7 +8,12 @@
 #include <boost/thread.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <cv_bridge/cv_bridge.h>
+
+#define CCOMPASS_IMPLEMENTATION
+#include "ccompass.h"
+
 #include "pc/pc_node.hpp"
+
 
 namespace pc {
 
@@ -72,14 +77,39 @@ void PCNode::process_image(const sensor_msgs::ImageConstPtr &msg)
 }
 
 double PCNode::extract_azimuth_from_image(const cv::Mat image) {
-
 	
+	cv::Size dim = image.size();
+	int w = dim.width/2, h = dim.height/2;
+	 
+	// cv::Mat image_scaled;
+	// cv::resize(image, image_scaled, cv::Size(), 0.5, 0.5, cv::InterpolationFlags::INTER_AREA);
+	// cv::imshow("image_raw", image_scaled);
 
-	return 6.9;
+	struct cc_stokes *stokes_vectors;
+	stokes_vectors = (struct cc_stokes*) malloc(sizeof(struct cc_stokes) * w * h);
+	cc_compute_stokes(image.data, stokes_vectors, w, h);
+
+	double *aolps;
+	aolps = (double*) malloc(sizeof(double) * w * h);
+
+	double *dolps;
+	dolps = (double*) malloc(sizeof(double) * w * h);
+
+	cc_transform_stokes(stokes_vectors, w, h);
+	cc_compute_aolp(stokes_vectors, aolps, w, h);
+	cc_compute_dolp(stokes_vectors, dolps, w, h);
+
+	double azimuth;
+	cc_hough_transform(aolps, dolps, w, h, &azimuth);
+
+	free(stokes_vectors);
+	free(aolps);
+	free(dolps);	
+
+	return azimuth;
 }
 
 }
-
 
 
 int main(int argc, char *argv[]) 
