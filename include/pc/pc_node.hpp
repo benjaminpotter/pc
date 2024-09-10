@@ -24,6 +24,7 @@ private:
 	
 	void handle_image(const sensor_msgs::ImageConstPtr &msg);
 	void process_image(const sensor_msgs::ImageConstPtr &msg);
+	double extract_azimuth_from_image(const cv::Mat image);
 
 private:
 
@@ -33,6 +34,8 @@ private:
 	image_transport::Subscriber image_subscriber;
 
 	std::queue<sensor_msgs::ImageConstPtr> msg_queue;
+
+	ros::Publisher orientation_publisher;
 
 };
 
