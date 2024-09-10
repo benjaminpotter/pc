@@ -11,6 +11,7 @@ find_package(catkin REQUIRED
 	roscpp
 	image_transport
 	cv_bridge
+	novatel_oem7_msgs
 )
 
 ## System dependencies are found with CMake's conventions

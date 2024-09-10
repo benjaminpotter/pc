@@ -5,6 +5,7 @@
 
 #include <ros/ros.h>
 #include <geometry_msgs/Vector3Stamped.h>
+#include <novatel_oem7_msgs/INSPVA.h>
 #include <boost/thread.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <cv_bridge/cv_bridge.h>
@@ -24,6 +25,9 @@ PCNode::PCNode() :
 	image_subscriber = image_transport.subscribe("/arena_camera_node/image_raw", 1, &PCNode::handle_image, this);
 	ROS_INFO("subscribed to image topic");
 
+	reference_subscriber = node_handle.subscribe("/novatel/oem7/inspva", 1, &PCNode::handle_reference, this);
+	ROS_INFO("subscribed to reference topic");
+
 	orientation_publisher = node_handle.advertise<geometry_msgs::Vector3Stamped>("/pc/orientation", 1);
 }
 
@@ -42,6 +46,9 @@ void PCNode::spin()
 			msg_queue.pop();
 		}
 
+		// ROS_INFO("image azimuth: %f", last_image_azimuth);
+		// ROS_INFO("reference azimuth: %f", last_reference_azimuth);
+
 		cv::waitKey(30);
 		loop_rate.sleep();	
 	}
@@ -51,22 +58,26 @@ void PCNode::spin()
 
 void PCNode::handle_image(const sensor_msgs::ImageConstPtr &msg) 
 {
-	ROS_INFO("add image to queue");
 	msg_queue.push(msg);
+}
+
+
+void PCNode::handle_reference(const novatel_oem7_msgs::INSPVA &msg)
+{
+	last_reference_azimuth = msg.azimuth;
 }
 
 void PCNode::process_image(const sensor_msgs::ImageConstPtr &msg)
 {
-	ROS_INFO("process image");
-
 	cv_bridge::CvImageConstPtr image_ptr;
 	image_ptr = cv_bridge::toCvShare(msg, "mono8");
 
-	// cv::Mat image_scaled;
-	// cv::resize(image_ptr->image, image_scaled, cv::Size(), 0.5, 0.5, cv::InterpolationFlags::INTER_AREA);
-	// cv::imshow("image_raw", image_scaled);
+	cv::Mat image_scaled;
+	cv::resize(image_ptr->image, image_scaled, cv::Size(), 0.5, 0.5, cv::InterpolationFlags::INTER_AREA);
+	cv::imshow("image_raw", image_scaled);
 	
 	double azimuth = extract_azimuth_from_image(image_ptr->image);
+	last_image_azimuth = azimuth;
 	
 	geometry_msgs::Vector3Stamped orientation;
 	orientation.header = msg->header;
@@ -76,14 +87,10 @@ void PCNode::process_image(const sensor_msgs::ImageConstPtr &msg)
 	orientation_publisher.publish(orientation);
 }
 
-double PCNode::extract_azimuth_from_image(const cv::Mat image) {
-	
+double PCNode::extract_azimuth_from_image(const cv::Mat image) 
+{
 	cv::Size dim = image.size();
 	int w = dim.width/2, h = dim.height/2;
-	 
-	// cv::Mat image_scaled;
-	// cv::resize(image, image_scaled, cv::Size(), 0.5, 0.5, cv::InterpolationFlags::INTER_AREA);
-	// cv::imshow("image_raw", image_scaled);
 
 	struct cc_stokes *stokes_vectors;
 	stokes_vectors = (struct cc_stokes*) malloc(sizeof(struct cc_stokes) * w * h);
@@ -106,7 +113,7 @@ double PCNode::extract_azimuth_from_image(const cv::Mat image) {
 	free(aolps);
 	free(dolps);	
 
-	return azimuth;
+	return azimuth * 180 / 3.14159265;
 }
 
 }
