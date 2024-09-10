@@ -9,6 +9,8 @@ project(pc)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED 
 	roscpp
+	image_transport
+	cv_bridge
 )
 
 ## System dependencies are found with CMake's conventions
@@ -114,7 +116,7 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-	# include
+	include
 	${catkin_INCLUDE_DIRS}
 )
 
